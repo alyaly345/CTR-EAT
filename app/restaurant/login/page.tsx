@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { setCurrentRestaurant } from '@/lib/storage'
 import { ArrowLeft, UtensilsCrossed, ChevronRight, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 
-export default function RestaurantLoginPage() {
+function RestaurantLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [id, setId] = useState('')
@@ -206,5 +206,12 @@ export default function RestaurantLoginPage() {
       </footer>
 
     </div>
+  )
+}
+export default function RestaurantLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <RestaurantLoginContent />
+    </Suspense>
   )
 }
