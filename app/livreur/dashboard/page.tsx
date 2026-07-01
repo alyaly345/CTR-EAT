@@ -80,6 +80,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 const STEP_LABELS = ['Assignée', 'Acceptée', 'Récupérée', 'En route', 'Livrée']
 const STEP_ICONS  = [Bell, CheckCircle, Package, Navigation, CheckCircle]
 
+
 function getNextStatus(s: OrderStatus): OrderStatus | null {
   const idx = STATUS_ORDER.indexOf(s)
   if (idx < 0 || idx >= STATUS_ORDER.length - 1) return null
@@ -140,6 +141,39 @@ export default function LivreurDashboardPage() {
   const audioCtxRef       = useRef<AudioContext | null>(null)
   // ✅ Ref pour soundOn pour éviter les closures stales
   const soundOnRef        = useRef<boolean>(soundOn)
+  const subscribeToPush = useCallback(async (livreurId: string) => {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+
+    const reg = await navigator.serviceWorker.ready
+
+    const existing = await reg.pushManager.getSubscription()
+    if (existing) {
+      await fetch('/api/save-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ livreur_id: livreurId, subscription: existing }),
+      })
+      return
+    }
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    })
+
+    await fetch('/api/save-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ livreur_id: livreurId, subscription: sub }),
+    })
+  } catch (err) {
+    console.error('Push subscription error:', err)
+  }
+}, [])
 
   useEffect(() => {
     soundOnRef.current = soundOn
@@ -208,11 +242,23 @@ export default function LivreurDashboardPage() {
         o.status === 'sent' &&
         !alreadyAlarmedIds.current.has(o.id)
       )
-      if (newAssigned.length > 0) {
-        newAssigned.forEach(o => alreadyAlarmedIds.current.add(o.id))
-        startAlarm()
-        setExpandedId(newAssigned[0].id)
-      }
+         if (newAssigned.length > 0) {
+          newAssigned.forEach(o => {
+          alreadyAlarmedIds.current.add(o.id)
+          fetch('/api/send-push', {
+         method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+          livreur_id: lv.id,
+          title: '🔔 Nouvelle commande !',
+          body: `Une commande de ${o.total.toLocaleString('fr-FR')} FCFA vous a été assignée.`,
+          url: '/livreur/dashboard',
+        }),
+      }).catch(console.error)
+    })
+  startAlarm()
+  setExpandedId(newAssigned[0].id)
+}
 
       // Stopper alarme si plus de "sent" à accepter
       const pendingSent = myOrders.filter(o => o.status === 'sent')
@@ -231,6 +277,7 @@ export default function LivreurDashboardPage() {
     setLivreur(lv)
     setLoading(false)
     loadOrders(lv)
+    subscribeToPush(lv.id)
 
     const channel = supabase
   .channel(`livreur_${lv.id}`)
