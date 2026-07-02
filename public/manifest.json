@@ -2,7 +2,7 @@
   "name": "CTR Chicken - Livreur",
   "short_name": "CTR Livreur",
   "description": "Application livreur - gestion des commandes CTR Chicken",
-  "start_url": "/livreur",
+  "start_url": "/livreur/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#F97316",

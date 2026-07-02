@@ -149,7 +149,7 @@ export default function LivreurDashboardPage() {
     if (permission !== 'granted') return
 
     const reg = await navigator.serviceWorker.ready
-
+    
     const existing = await reg.pushManager.getSubscription()
     if (existing) {
       await fetch('/api/save-subscription', {
