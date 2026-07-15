@@ -74,9 +74,10 @@ export default function LivreursPage() {
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [formData, setFormData] = useState({ nom: '', numero: '' })
+  const [formData, setFormData] = useState({ nom: '', numero: '', id: '' })
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const generateLivreurId = () => 'LIV-' + Math.random().toString(36).substring(2, 6).toUpperCase()
 
   /* ── États additionnels pour la gestion des commandes livreurs ── */
   const [activeOrders, setActiveOrders] = useState<OrderRow[]>([])
@@ -155,12 +156,11 @@ export default function LivreursPage() {
       supabase.removeChannel(channel)
     }
   }, [restaurant?.id, loadData])
-
-  const handleAddLivreur = async () => {
+   const handleAddLivreur = async () => {
     if (!restaurant) return
     setError('')
 
-    if (!formData.nom || !formData.numero) {
+    if (!formData.nom || !formData.numero || !formData.id) {
       setError('Veuillez remplir tous les champs')
       return
     }
@@ -171,6 +171,7 @@ export default function LivreursPage() {
       const { error: insertError } = await supabase
         .from('livreurs')
         .insert([{
+          id:            formData.id.trim().toUpperCase(),
           nom:           formData.nom.trim(),
           numero:        formData.numero.trim(),
           restaurant_id: restaurant.id,   
@@ -180,7 +181,7 @@ export default function LivreursPage() {
 
       if (insertError) throw insertError
 
-      setFormData({ nom: '', numero: '' })
+      setFormData({ nom: '', numero: '', id: '' })
       setIsAddOpen(false)
       await loadData(restaurant.id)
 
@@ -191,7 +192,6 @@ export default function LivreursPage() {
       setIsSubmitting(false)
     }
   }
-
   const handleDeleteLivreur = async (id: string) => {
     if (!restaurant) return
     const { error } = await supabase.from('livreurs').delete().eq('id', id)
@@ -284,7 +284,10 @@ export default function LivreursPage() {
           <Button variant="outline" size="icon" onClick={() => loadData(restaurant.id)} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <Dialog open={isAddOpen} onOpenChange={(open) => {
+            setIsAddOpen(open)
+            if (open) setFormData({ nom: '', numero: '', id: generateLivreurId() })
+            }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -315,6 +318,17 @@ export default function LivreursPage() {
                     placeholder="77000000"
                     value={formData.numero}
                     onChange={e => setFormData(prev => ({ ...prev, numero: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="livreur-id">ID Livreur (à communiquer au livreur)</Label>
+                  <Input
+                    id="livreur-id"
+                    placeholder="LIV-001"
+                    value={formData.id}
+                    onChange={e => setFormData(prev => ({ ...prev, id: e.target.value.toUpperCase() }))}
+                    className="font-mono"
                   />
                 </div>
 
